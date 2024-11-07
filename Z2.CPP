@@ -79,6 +79,28 @@ double multiThreadProcessing(const vector<BankTransaction>& transactions, const 
     return accumulate(results.begin(), results.end(), 0.0);
 }
 
+// Функция для вывода информации о транзакциях
+void printTransactions(const vector<BankTransaction>& transactions, const string& operation,
+                       const chrono::system_clock::time_point& startDate,
+                       const chrono::system_clock::time_point& endDate) {
+    cout << setw(20) << left << "Holder Name"
+         << setw(20) << left << "Card Number"
+         << setw(20) << left << "Date"
+         << setw(20) << left << "Operation"
+         << setw(10) << left << "Amount" << "\n";
+
+    for (const auto& t : transactions) {
+        if (t.operation == operation && t.date >= startDate && t.date <= endDate) {
+            time_t time = chrono::system_clock::to_time_t(t.date);
+            cout << setw(20) << left << t.holderName
+                 << setw(20) << left << t.cardNumber
+                 << setw(20) << left << put_time(localtime(&time), "%Y-%m-%d %H:%M:%S")
+                 << setw(20) << left << t.operation
+                 << setw(10) << left << t.amount << "\n";
+        }
+    }
+}
+
 // Функция для измерения времени выполнения
 template<typename Func>
 void measure_time(const string& name, Func func) {
@@ -104,15 +126,24 @@ int main(int argc, char* argv[]) {
     auto startDate = chrono::system_clock::now() - chrono::hours(24 * startDateDaysAgo);
     auto endDate = chrono::system_clock::now() - chrono::hours(24 * endDateDaysAgo);
 
+    // Вывод информации о транзакциях
+    printTransactions(transactions, operation, startDate, endDate);
+
     // Однопоточная обработка
+    double singleThreadResult = 0.0;
     measure_time("Single Thread", [&]() {
-        return singleThreadProcessing(transactions, operation, startDate, endDate);
+        singleThreadResult = singleThreadProcessing(transactions, operation, startDate, endDate);
+        return singleThreadResult;
     });
+    cout << "Single Thread Result: " << singleThreadResult << "\n";
 
     // Многопоточная обработка
+    double multiThreadResult = 0.0;
     measure_time("Multi Thread", [&]() {
-        return multiThreadProcessing(transactions, operation, startDate, endDate, threadCount);
+        multiThreadResult = multiThreadProcessing(transactions, operation, startDate, endDate, threadCount);
+        return multiThreadResult;
     });
+    cout << "Multi Thread Result: " << multiThreadResult << "\n";
 
     return 0;
 }
