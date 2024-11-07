@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <random>
 #include <iomanip>
+#include <string>
 
 using namespace std;
 
@@ -53,8 +54,7 @@ double singleThreadProcessing(const vector<BankTransaction>& transactions, const
 // Многопоточная обработка
 double multiThreadProcessing(const vector<BankTransaction>& transactions, const string& operation,
                              const chrono::system_clock::time_point& startDate,
-                             const chrono::system_clock::time_point& endDate) {
-    int threadCount = thread::hardware_concurrency();
+                             const chrono::system_clock::time_point& endDate, int threadCount) {
     vector<thread> threads;
     vector<double> results(threadCount, 0.0);
 
@@ -88,11 +88,21 @@ void measure_time(const string& name, Func func) {
     cout << setw(20) << left << name << ": " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << " ms, Result: " << result << "\n";
 }
 
-int main() {
-    auto transactions = generateTransactions(1000000);
-    string operation = "пополнение";
-    auto startDate = chrono::system_clock::now() - chrono::hours(24 * 30);
-    auto endDate = chrono::system_clock::now();
+int main(int argc, char* argv[]) {
+    if (argc < 6) {
+        cerr << "Usage: " << argv[0] << " <transaction_count> <thread_count> <operation> <start_date_days_ago> <end_date_days_ago>\n";
+        return 1;
+    }
+
+    int transactionCount = stoi(argv[1]);
+    int threadCount = stoi(argv[2]);
+    string operation = argv[3];
+    int startDateDaysAgo = stoi(argv[4]);
+    int endDateDaysAgo = stoi(argv[5]);
+
+    auto transactions = generateTransactions(transactionCount);
+    auto startDate = chrono::system_clock::now() - chrono::hours(24 * startDateDaysAgo);
+    auto endDate = chrono::system_clock::now() - chrono::hours(24 * endDateDaysAgo);
 
     // Однопоточная обработка
     measure_time("Single Thread", [&]() {
@@ -101,7 +111,7 @@ int main() {
 
     // Многопоточная обработка
     measure_time("Multi Thread", [&]() {
-        return multiThreadProcessing(transactions, operation, startDate, endDate);
+        return multiThreadProcessing(transactions, operation, startDate, endDate, threadCount);
     });
 
     return 0;
