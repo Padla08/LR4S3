@@ -2,12 +2,12 @@
 #include <thread>
 #include <vector>
 #include <random>
-#include <mutex>
-#include <condition_variable>
-#include <atomic>
-#include <chrono>
 #include <map>
 #include <algorithm>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
+#include <atomic>
 
 using namespace std;
 
@@ -150,10 +150,26 @@ void generateRandomCharSpinWait(int threadId) {
     }
 }
 
-// Monitor
-mutex mtxMonitor;
-condition_variable cvMonitor;
-bool ready = false;
+//  Monitor
+class Monitor {
+public:
+    Monitor() : ready(false) {}
+
+    void enter() {
+        while (ready.exchange(false, memory_order_acquire)) {  // Атомарное ожидание и сброс флага
+            this_thread::yield();  // Уступаем процессор, если флаг уже был сброшен
+        }
+    }
+
+    void leave() {
+        ready.store(true, memory_order_release);  // Устанавливаем флаг
+    }
+
+private:
+    atomic<bool> ready;
+};
+
+Monitor monitor;
 void generateRandomCharMonitor(int threadId) {
     random_device rd;
     mt19937 gen(rd());
@@ -161,11 +177,9 @@ void generateRandomCharMonitor(int threadId) {
 
     for (int i = 0; i < NUM_ITERATIONS; ++i) {
         char c = static_cast<char>(dis(gen));
-        unique_lock<mutex> lock(mtxMonitor);  // Захватываем мьютекс
-        cvMonitor.wait(lock, []{ return ready; });  // Ожидаем, пока флаг ready не станет true
+        monitor.enter();  // Входим в монитор
         // Не выводим символы в терминал
-        ready = false;  // Сбрасываем флаг
-        cvMonitor.notify_all();  // Уведомляем все ожидающие потоки
+        monitor.leave();  // Покидаем монитор
     }
 }
 
@@ -236,6 +250,11 @@ int main() {
         t.join();
     }
     threads.clear();
+
+    cout << "Monitor:" << endl;
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        threads.emplace_back(measureTime, generateRandomCharMonitor, i, ref(results), "Monitor");
+    }
     for (auto& t : threads) {
         t.join();
     }
