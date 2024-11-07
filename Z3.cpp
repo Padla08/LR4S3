@@ -19,18 +19,27 @@ void philosopher(int id) {
         cout << "Philosopher " << id << " is thinking.\n";
         this_thread::sleep_for(chrono::milliseconds(1000));
 
-        // Философ пытается взять вилки
-        unique_lock<mutex> left(forks[left_fork]);
-        unique_lock<mutex> right(forks[right_fork], defer_lock);
-
-        if (right.try_lock()) {
+        if (id == NUM_PHILOSOPHERS - 1) {
+            // Последний философ берет вилки в обратном порядке
+            unique_lock<mutex> right(forks[right_fork]);
+            unique_lock<mutex> left(forks[left_fork], defer_lock);
+            left.lock();
+            // Философ ест
+            cout << "Philosopher " << id << " is eating.\n";
+            this_thread::sleep_for(chrono::milliseconds(1000));
+            left.unlock();
+            right.unlock();
+        } else {
+            // Остальные философы берут вилки в обычном порядке
+            unique_lock<mutex> left(forks[left_fork]);
+            unique_lock<mutex> right(forks[right_fork], defer_lock);
+            right.lock();
             // Философ ест
             cout << "Philosopher " << id << " is eating.\n";
             this_thread::sleep_for(chrono::milliseconds(1000));
             right.unlock();
+            left.unlock();
         }
-
-        left.unlock();
     }
 }
 
